@@ -293,9 +293,9 @@ class OptimizerStochasticDepth(Optimizer):
     def __init__(self, model=None, lr=0.1, momentum=0.9, schedule=(250, 375), weight_decay=1.0e-4):
         super(OptimizerStochasticDepth, self).__init__(model)
         optimizer = optimizers.MomentumSGD(lr, momentum)
-        weight_decay = chainer.optimizer.WeightDecay(weight_decay)
+        # weight_decay = chainer.optimizer.WeightDecay(weight_decay)
         optimizer.setup(self.model)
-        optimizer.add_hook(weight_decay)
+        # optimizer.add_hook(weight_decay)
         self.optimizer = optimizer
         self.schedule = schedule
         self.lr = lr
