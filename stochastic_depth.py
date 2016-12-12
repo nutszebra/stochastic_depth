@@ -75,6 +75,9 @@ class Conv_BN_ReLU_Conv_BN(nutszebra_chainer.Model):
             # do nothing
             return x
         else:
+            batch, channel, height, width = x.data.shape
+            _, in_channel, _, _ = self.conv1.W.data.shape
+            x = self.concatenate_zero_pad(x, (batch, in_channel, height, width), x.volatile, type(x.data))
             h = self.conv1(x)
             h = self.bn1(h, test=not train)
             h = F.relu(h)
