@@ -72,11 +72,10 @@ class Conv_BN_ReLU_Conv_BN(nutszebra_chainer.Model):
         return x
 
     def __call__(self, x, train=False):
-        if self.flag is True and train is True and self.probability <= np.random.rand():
+        if train is True and self.probability <= np.random.rand():
             # do nothing
             return x
         else:
-            self.flag = True
             batch, channel, height, width = x.data.shape
             _, in_channel, _, _ = self.conv1.W.data.shape
             x = self.concatenate_zero_pad(x, (batch, in_channel, height, width), x.volatile, type(x.data))
