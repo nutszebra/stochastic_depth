@@ -301,7 +301,7 @@ class OptimizerStochasticDepth(Optimizer):
         optimizer_set = []
         for link in all_links:
             optimizer = optimizers.MomentumSGD(lr, momentum)
-            weight_decay = chainer.optimizer.WeightDecay(weight_decay)
+            weight_decay = chainer.optimizer.WeightDecay(self.weight_decay)
             optimizer.setup(link[0])
             optimizer.add_hook(weight_decay)
             optimizer_set.append(optimizer)
