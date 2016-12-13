@@ -165,7 +165,7 @@ class StochasticDepth(nutszebra_chainer.Model):
         self.strides = strides
         self.drop_probability = drop_probability
         self.category_num = category_num
-        self.name = 'pyramidal_resnet_{}_{}_{}_{}'.format(category_num, N, out_channels, p)
+        self.name = 'stochastic_depth_{}_{}_{}_{}'.format(category_num, N, out_channels, p)
 
     @staticmethod
     def linear_schedule(bottom_layer, top_layer, N):
