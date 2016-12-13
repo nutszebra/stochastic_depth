@@ -317,7 +317,7 @@ class OptimizerStochasticDepth(Optimizer):
 
     def update(self):
         for i in six.moves.range(len(self.all_links)):
-            if self.all_links[i][1] is not None:
+            if self.all_links[i][1].grad is not None:
                 self.optimizer_set[i].update()
 
     @staticmethod
