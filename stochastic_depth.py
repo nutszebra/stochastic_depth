@@ -71,7 +71,7 @@ class Conv_BN_ReLU_Conv_BN(nutszebra_chainer.Model):
         return x
 
     def __call__(self, x, train=False):
-        if self.probability <= np.random.rand():
+        if train is True and self.probability <= np.random.rand():
             # do nothing
             return x
         else:
@@ -97,6 +97,43 @@ class Conv_BN_ReLU_Conv_BN(nutszebra_chainer.Model):
         return self._count_conv(self.conv1) + self._count_conv(self.conv2)
 
 
+class StochasticDepthBlock(nutszebra_chainer.Model):
+
+    def __init__(self, in_channel, out_channel, strides, probability):
+        super(StochasticDepthBlock, self).__init__()
+        self.in_channel = in_channel
+        self.out_channel = out_channel
+        modules = []
+        for i in six.moves.range(len(strides)):
+            stride = strides[i]
+            p = probability[i]
+            name = 'res_block{}'.format(i)
+            modules.append((name, Conv_BN_ReLU_Conv_BN(in_channel, out_channel, (3, 3), stride, (1, 1), p)))
+            # in_channel is changed
+            in_channel = out_channel
+        # register layers
+        [self.add_link(*link) for link in modules]
+        self.modules = modules
+        self.strides = strides
+        self.probability = probability
+
+    def weight_initialization(self):
+        for name, link in self.modules:
+            link.weight_initialization()
+
+    def count_parameters(self):
+        count = 0
+        for name, link in self.modules:
+            count += link.count_parameters()
+        return count
+
+    def __call__(self, x, train=False):
+        for i in six.moves.range(len(self.strides)):
+            name = 'res_block{}'.format(i)
+            x = self[name](x, train=train)
+        return x
+
+
 class StochasticDepth(nutszebra_chainer.Model):
 
     def __init__(self, category_num, N=(int(110 / 3 / 2),) * 3, out_channels=(16, 32, 64), p=(1.0, 0.5)):
@@ -111,14 +148,13 @@ class StochasticDepth(nutszebra_chainer.Model):
         drop_probability = StochasticDepth.linear_schedule(p[0], p[1], N)
         in_channel = 16
         for i in six.moves.range(len(strides)):
-            for ii in six.moves.range(len(strides[i])):
-                out_channel = out_channels[i]
-                stride = strides[i][ii]
-                probability = drop_probability[i][ii]
-                name = 'res_block{}_{}'.format(i, ii)
-                modules.append((name, Conv_BN_ReLU_Conv_BN(in_channel, out_channel, (3, 3), stride, (1, 1), probability)))
-                # in_channel is changed
-                in_channel = out_channel
+            out_channel = out_channels[i]
+            stride = strides[i]
+            probability = drop_probability[i]
+            name = 'stochastic_block{}'.format(i)
+            modules.append((name, StochasticDepthBlock(in_channel, out_channel, stride, probability)))
+            # in_channel is changed
+            in_channel = out_channel
         modules += [('linear', Conv_BN_ReLU(out_channel, category_num, 1, 1, 0))]
         # register layers
         [self.add_link(*link) for link in modules]
@@ -160,9 +196,8 @@ class StochasticDepth(nutszebra_chainer.Model):
     def __call__(self, x, train=False):
         h = self.conv1(x, train=train)
         for i in six.moves.range(len(self.strides)):
-            for ii in six.moves.range(len(self.strides[i])):
-                name = 'res_block{}_{}'.format(i, ii)
-                h = self[name](h, train=train)
+            name = 'stochastic_block{}'.format(i)
+            h = self[name](h, train)
         batch, channels, height, width = h.data.shape
         h = F.reshape(F.average_pooling_2d(h, (height, width)), (batch, channels, 1, 1))
         return F.reshape(self.linear(h, train=train), (batch, self.category_num))
