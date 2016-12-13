@@ -1,3 +1,4 @@
+import six
 import chainer
 from chainer import optimizers
 import nutszebra_basic_print
@@ -292,17 +293,57 @@ class OptimizerStochasticDepth(Optimizer):
 
     def __init__(self, model=None, lr=0.1, momentum=0.9, schedule=(250, 375), weight_decay=1.0e-4):
         super(OptimizerStochasticDepth, self).__init__(model)
-        optimizer = optimizers.MomentumSGD(lr, momentum)
-        weight_decay = chainer.optimizer.WeightDecay(weight_decay)
-        optimizer.setup(self.model)
-        optimizer.add_hook(weight_decay)
-        self.optimizer = optimizer
-        self.schedule = schedule
         self.lr = lr
         self.momentum = momentum
+        self.schedule = schedule
+        self.weight_decay = weight_decay
+        all_links = OptimizerStochasticDepth._find(model)
+        optimizer_set = []
+        for link in all_links:
+            optimizer = optimizers.MomentumSGD(lr, momentum)
+            weight_decay = chainer.optimizer.WeightDecay(weight_decay)
+            optimizer.setup(link[0])
+            optimizer.add_hook(weight_decay)
+            optimizer_set.append(optimizer)
+        self.optimizer_set = optimizer_set
+        self.all_links = all_links
 
     def __call__(self, i):
         if i in self.schedule:
             lr = self.optimizer.lr / 10
             print('lr is changed: {} -> {}'.format(self.optimizer.lr, lr))
-            self.optimizer.lr = lr
+            for optimizer in self.optimizer_set:
+                optimizer.lr = lr
+
+    def update(self):
+        for i in six.moves.range(len(self.all_links)):
+            if self.all_links[i][1] is not None:
+                self.optimizer_set[i].update()
+
+    @staticmethod
+    def _grad(ele):
+        if hasattr(ele, 'W') and hasattr(ele.W, 'grad'):
+            return (ele, ele.W)
+        if hasattr(ele, 'beta') and hasattr(ele.beta, 'grad'):
+            return (ele, ele.beta)
+        return None
+
+    @staticmethod
+    def _children(ele):
+        return hasattr(ele, '_children')
+
+    @staticmethod
+    def _find(model):
+        links = []
+
+        def dfs(ele):
+
+            grad = OptimizerStochasticDepth._grad(ele)
+            if grad is not None:
+                links.append(grad)
+            else:
+                if OptimizerStochasticDepth._children(ele):
+                    for link in ele._children:
+                        dfs(ele[link])
+        dfs(model)
+        return links
