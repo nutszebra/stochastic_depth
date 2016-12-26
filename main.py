@@ -52,6 +52,7 @@ if __name__ == '__main__':
 
     print('generating model')
     model = stochastic_depth.StochasticDepth(10, N=(int(N / 3. / 2., ),) * 3, out_channels=(16, 32, 64), p=(1.0, 0.5))
+    print('parameters: {}'.format(model.count_parameters()))
     print('Done')
     optimizer = nutszebra_optimizer.OptimizerStochasticDepth(model, lr=lr)
     args['model'] = model
